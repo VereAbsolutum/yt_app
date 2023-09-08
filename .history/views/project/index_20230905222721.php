@@ -1,0 +1,105 @@
+<?php
+
+use kartik\select2\Select2;
+use yii\helpers\Html;
+use yii\widgets\ActiveForm;
+
+/* @var $this yii\web\View */
+/* @var $models app\models\YourModel[] */
+?>
+
+<?php foreach ($models as $model) : ?>
+    <div class="your-model-form">
+
+        <?php $form = ActiveForm::begin(); ?>
+
+        <?= $form->field($model, 'attribute')->widget(Select2::classname(), [
+            'data' => ['Option 1' => 'Option 1', 'Option 2' => 'Option 2'],
+            'options' => ['placeholder' => 'Select an option...'],
+            'pluginOptions' => [
+                'allowClear' => true
+            ],
+        ]); ?>
+
+        <div class="form-group">
+            <?= Html::submitButton('Save', ['class' => 'btn btn-success']) ?>
+        </div>
+
+        <?php ActiveForm::end(); ?>
+
+    </div>
+<?php endforeach; ?>
+
+
+
+<?php
+
+namespace app\controllers;
+
+use Yii;
+use yii\web\Controller;
+use app\models\Project;
+use app\models\ProcessedText;
+
+class ProjectController extends Controller
+{
+    public function actionIndex()
+    {
+        $projects = Project::find()->all();
+        return $this->render('index', ['models' => $projects]);
+    }
+
+    public function actionCreate()
+    {
+        $project = new Project();
+
+        if ($project->load(Yii::$app->request->post()) && $project->save()) {
+            // Dividir o text em parts iguais de 100 caracteres
+            $parts = str_split($project->text, 100);
+
+            // Criar uma nova instância do modelo ProcessedText para cada part
+            foreach ($parts as $part) {
+                $processedText = new ProcessedText();
+                $processedText->id_project = $project->id;
+                $processedText->text_part = $part;
+                $processedText->save();
+            }
+
+            return $this->redirect(['view', 'id' => $project->id]);
+        }
+
+        return $this->render('create', ['project' => $project]);
+    }
+
+    public function actionView($id)
+    {
+        $project = Project::findOne($id);
+        return $this->render('view', ['project' => $project]);
+    }
+
+    public function actionUpdate($id)
+    {
+        $project = Project::findOne($id);
+
+        if ($project->load(Yii::$app->request->post()) && $project->save()) {
+            // Atualizar as parts do text
+            foreach ($project->processedText as $processedText) {
+                if ($processedText->load(Yii::$app->request->post()) && $processedText->save()) {
+                    // A part do text foi atualizada com sucesso
+                } else {
+                    // Ocorreu um erro ao atualizar a part do text
+                }
+            }
+
+            return $this->redirect(['view', 'id' => $project->id]);
+        }
+
+        return $this->render('update', ['project' => $project]);
+    }
+
+    public function actionDelete($id)
+    {
+        Project::findOne($id)->delete();
+        return $this->redirect(['index']);
+    }
+}
